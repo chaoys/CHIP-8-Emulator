@@ -1,0 +1,40 @@
+cs
+i L_border
+mov 31 v0
+mov 0 v1
+draw v0 v1 15
+add 15 v1
+draw v0 v1 15
+i L_box
+mov 0 v0
+mov 0 v1
+draw v0 v1 2
+
+L_mov:
+mov 3 v4
+jk v4
+j L_mov
+draw v0 v1 2
+add 1 v0
+draw v0 v1 2
+je 1 vf
+j L_mov
+draw v0 v1 2
+add 255 v0
+draw v0 v1 2
+j L_mov
+
+hlt
+
+L_box:
+.byte 0x80 0x80
+
+L_border:
+.byte 0x80 0x80
+.byte 0x80 0x80
+.byte 0x80 0x80
+.byte 0x80 0x80
+.byte 0x80 0x80
+.byte 0x80 0x80
+.byte 0x80 0x80
+.byte 0x80 0x80

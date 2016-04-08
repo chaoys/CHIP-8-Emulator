@@ -1,0 +1,141 @@
+CHIP8 Assembler Syntax
+
+# 0NNN #
+=> NOT Implemented
+Calls RCA 1802 program at address NNN. Not necessary for most ROMs.
+
+# 00E0 #
+=> cs
+Clears the screen.
+
+# 00EE #
+=> ret
+Returns from a subroutine.
+
+# 1NNN #
+=> j NNN
+Jumps to address NNN.
+
+# 2NNN #
+=> call NNN
+Calls subroutine at NNN.
+
+# 3XNN #
+=> je VX NN
+Skips the next instruction if VX equals NN.
+
+# 4XNN #
+=> jne VX NN
+Skips the next instruction if VX doesn't equal NN.
+
+# 5XY0 #
+=> je VX VY
+Skips the next instruction if VX equals VY.
+
+# 6XNN #
+=> mov NN VX
+Sets VX to NN.
+
+# 7XNN #
+=> add NN VX
+Adds NN to VX.
+
+# 8XY0 #
+=> mov VY VX
+Sets VX to the value of VY.
+
+# 8XY1 #
+=> or VY VX
+Sets VX to VX or VY.
+
+# 8XY2 #
+=> and VY VX
+Sets VX to VX and VY.
+
+# 8XY3 #
+=> xor VY VX
+Sets VX to VX xor VY.
+
+# 8XY4 #
+=> add VY VX
+Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there isn't.
+
+# 8XY5 #
+=> sub VY VX
+VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
+
+# 8XY6 #
+=> shr VX
+Shifts VX right by one. VF is set to the value of the least significant bit of VX before the shift.
+
+# 8XY7 #
+=> subv VY VX
+Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
+
+# 8XYE #
+=> shl VX
+Shifts VX left by one. VF is set to the value of the most significant bit of VX before the shift.
+
+# 9XY0 #
+=> jne VX VY
+Skips the next instruction if VX doesn't equal VY.
+
+# ANNN #
+=> i NNN
+Sets I to the address NNN.
+
+# BNNN #
+=> i0 NNN
+Jumps to the address NNN plus V0.
+
+# CXNN #
+=> rand NN VX
+Sets VX to the result of a bitwise and operation on a random number and NN.
+
+# DXYN #
+=> draw VX VX N
+Sprites stored in memory at location in index register (I), 8bits wide. Wraps around the screen. If when drawn, clears a pixel, register VF is set to 1 otherwise it is zero. All drawing is XOR drawing (i.e. it toggles the screen pixels). Sprites are drawn starting at position VX, VY. N is the number of 8bit rows that need to be drawn. If N is greater than 1, second line continues at position VX, VY+1, and so on.
+
+# EX9E #
+=> jk VX
+Skips the next instruction if the key stored in VX is pressed.
+
+# EXA1 #
+=> jnk VX
+Skips the next instruction if the key stored in VX isn't pressed.
+
+# FX07 #
+=> ldelay VX
+Sets VX to the value of the delay timer.
+
+# FX0A #
+=> wait VX
+A key press is awaited, and then stored in VX.
+
+# FX15 #
+=> delay VX
+Sets the delay timer to VX.
+
+# FX18 #
+=> sound VX
+Sets the sound timer to VX.
+
+# FX1E #
+=> ix VX
+Adds VX to I.
+
+# FX29 #
+=> is VX
+Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
+
+# FX33 #
+=> bcd VX
+Stores the Binary-coded decimal representation of VX, with the most significant of three digits at the address in I, the middle digit at I plus 1, and the least significant digit at I plus 2. (In other words, take the decimal representation of VX, place the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.)
+
+# FX55 #
+=> store X
+Stores V0 to VX (including VX) in memory starting at address I.
+
+# FX65 #
+=> load X
+Fills V0 to VX (including VX) with values from memory starting at address I.

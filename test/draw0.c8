@@ -1,0 +1,18 @@
+cs
+mov 0 v0
+is v0
+mov 0 v7
+mov 0 v8
+draw v7 v8 5
+mov 1 v0
+is v0
+mov 8 v9
+add v9 v7
+draw v7 v8 5
+mov 0xb v0
+is v0
+mov 0 v7
+mov 10 v8
+draw v7 v8 5
+hlt
+

@@ -1,0 +1,45 @@
+cs
+mov 12 v0
+mov 0 v1
+call L_fibo
+hlt
+
+L_fibo:
+jne 0 v0
+j L_ret0
+jne 1 v0
+j L_ret1
+i 0x300
+ix v1
+store 1
+add 2 v1
+mov 1 v7
+sub v7 v0
+call L_fibo
+mov 2 v7
+sub v7 v1
+i 0x300
+ix v1
+load 1
+mov v8 v2
+store 2
+add 3 v1
+mov 2 v7
+sub v7 v0
+call L_fibo
+mov 3 v7
+sub v7 v1
+i 0x300
+ix v1
+load 2
+add v2 v8
+ret
+
+L_ret0:
+mov 0 v8
+ret
+
+L_ret1:
+mov 1 v8
+ret
+
