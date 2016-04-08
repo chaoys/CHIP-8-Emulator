@@ -48,7 +48,6 @@ struct chip8_state {
 static struct chip8_state chip8;
 static struct chip8_state *c8 = &chip8;
 static struct chip8_video *c8v = &chip8.video;
-static uint8_t *chip8_registers = (uint8_t *)&chip8.v;
 
 static void chip8_video_init(void)
 {
@@ -343,7 +342,7 @@ static int op2(uint8_t *buf)
 
 static int op3(uint8_t *buf)
 {
-	if (chip8_registers[reg1(buf)] == value8(buf)) {
+	if (c8->v[reg1(buf)] == value8(buf)) {
 		pc_advance(2);
 		return 0;
 	}
@@ -352,7 +351,7 @@ static int op3(uint8_t *buf)
 
 static int op4(uint8_t *buf)
 {
-	if (chip8_registers[reg1(buf)] != value8(buf)) {
+	if (c8->v[reg1(buf)] != value8(buf)) {
 		pc_advance(2);
 		return 0;
 	}
@@ -361,7 +360,7 @@ static int op4(uint8_t *buf)
 
 static int op5(uint8_t *buf)
 {
-	if (chip8_registers[reg1(buf)] == chip8_registers[reg2(buf)]) {
+	if (c8->v[reg1(buf)] == c8->v[reg2(buf)]) {
 		pc_advance(2);
 		return 0;
 	}
@@ -370,13 +369,13 @@ static int op5(uint8_t *buf)
 
 static int op6(uint8_t *buf)
 {
-	chip8_registers[reg1(buf)] = value8(buf);
+	c8->v[reg1(buf)] = value8(buf);
 	return 1;
 }
 
 static int op7(uint8_t *buf)
 {
-	chip8_registers[reg1(buf)] += value8(buf);
+	c8->v[reg1(buf)] += value8(buf);
 	return 1;
 }
 
@@ -385,9 +384,9 @@ static int op8(uint8_t *buf)
 	uint8_t *vx, *vy, *vf;
 	int flag;
 	flag = value4(buf);
-	vx = &chip8_registers[reg1(buf)];
-	vy = &chip8_registers[reg2(buf)];
-	vf = &chip8_registers[0xf];
+	vx = &c8->v[reg1(buf)];
+	vy = &c8->v[reg2(buf)];
+	vf = &c8->v[0xf];
 	switch (flag) {
 		case 0:
 			*vx = *vy;
@@ -444,8 +443,9 @@ static int op8(uint8_t *buf)
 
 static int op9(uint8_t *buf)
 {
-	if (chip8_registers[reg1(buf)] != chip8_registers[reg2(buf)]) {
+	if (c8->v[reg1(buf)] != c8->v[reg2(buf)]) {
 		pc_advance(2);
+		return 0;
 	}
 	return 1;
 }
@@ -458,13 +458,13 @@ static int opa(uint8_t *buf)
 
 static int opb(uint8_t *buf)
 {
-	chip8.ip = chip8_registers[0] + address(buf);
+	chip8.ip = c8->v[0] + address(buf);
 	return 0;
 }
 
 static int opc(uint8_t *buf)
 {
-	chip8_registers[reg1(buf)] = value8(buf) & rand16();
+	c8->v[reg1(buf)] = value8(buf) & rand16();
 	return 1;
 }
 
@@ -501,7 +501,7 @@ static int ope(uint8_t *buf)
 
 static int opf(uint8_t *buf)
 {
-	uint8_t *vx = &chip8_registers[reg1(buf)];
+	uint8_t *vx = &c8->v[reg1(buf)];
 	uint8_t flag = value8(buf);
 	switch (flag ) {
 		case 0x07:
@@ -534,7 +534,7 @@ static int opf(uint8_t *buf)
 			{
 				int i;
 				for (i = 0; i <= reg1(buf); i++) {
-					chip8.mem[chip8.mp + i] = chip8_registers[i];
+					chip8.mem[chip8.mp + i] = c8->v[i];
 				}
 			}
 			break;
@@ -542,7 +542,7 @@ static int opf(uint8_t *buf)
 			{
 				int i;
 				for (i = 0; i <= reg1(buf); i++) {
-					chip8_registers[i] = chip8.mem[chip8.mp + i];
+					c8->v[i] = chip8.mem[chip8.mp + i];
 				}
 			}
 			break;
@@ -562,12 +562,6 @@ static op_fun_t optables[] = {
 static void chip8_decode(uint8_t *buf)
 {
 	uint8_t op;
-
-	{
-		uint16_t opc;
-		opc = ((buf[0] << 8) | buf[1]);
-		printf("0x%04x\n", opc);
-	}
 
 	op = (buf[0] & 0xf0) >> 4;
 	if (op > 0xf) {
