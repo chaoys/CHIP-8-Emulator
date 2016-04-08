@@ -34,8 +34,8 @@ struct chip8_state {
 	int16_t sp;
 	uint16_t hlt;
 
-	uint8_t delay_timer;
-	uint8_t sound_timer;
+	uint8_t dt;
+	uint8_t st;
 
 	uint8_t key[16];
 
@@ -71,7 +71,7 @@ static void chip8_dump(void)
 {
 	printf("CHIP8 State\n");
 	printf("IP 0x%x MP 0x%x SP 0x%x DT %d ST %d\n",
-		chip8.ip, chip8.mp, chip8.sp, chip8.delay_timer, chip8.sound_timer);
+		chip8.ip, chip8.mp, chip8.sp, chip8.dt, chip8.st);
 	printf("V0 %d V1 %d V2 %d V3 %d V4 %d V5 %d V6 %d V7 %d\n",
 		chip8.v[0], chip8.v[1], chip8.v[2], chip8.v[3], chip8.v[4], chip8.v[5], chip8.v[6], chip8.v[7]);
 	printf("V8 %d V9 %d VA %d VB %d VC %d VD %d VE %d VF %d \n",
@@ -196,52 +196,24 @@ static void chip8_video_key_process(void)
 		if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
 			switch (e.key.keysym.sym) {
 				case SDLK_0:
-					key = 0;
-					break;
 				case SDLK_1:
-					key = 1;
-					break;
 				case SDLK_2:
-					key = 2;
-					break;
 				case SDLK_3:
-					key = 3;
-					break;
 				case SDLK_4:
-					key = 4;
-					break;
 				case SDLK_5:
-					key = 5;
-					break;
 				case SDLK_6:
-					key = 6;
-					break;
 				case SDLK_7:
-					key = 7;
-					break;
 				case SDLK_8:
-					key = 8;
-					break;
 				case SDLK_9:
-					key = 9;
+					key = e.key.keysym.sym - SDLK_0;
 					break;
 				case SDLK_a:
-					key = 0xa;
-					break;
 				case SDLK_b:
-					key = 0xb;
-					break;
 				case SDLK_c:
-					key = 0xc;
-					break;
 				case SDLK_d:
-					key = 0xd;
-					break;
 				case SDLK_e:
-					key = 0xe;
-					break;
 				case SDLK_f:
-					key = 0xf;
+					key = e.key.keysym.sym - SDLK_a + 10;
 					break;
 				default:
 					return;
@@ -505,7 +477,7 @@ static int opf(uint8_t *buf)
 	uint8_t flag = value8(buf);
 	switch (flag ) {
 		case 0x07:
-			*vx = chip8.delay_timer;
+			*vx = chip8.dt;
 			break;
 		case 0x0a:
 			*vx = wait_input();
@@ -514,10 +486,10 @@ static int opf(uint8_t *buf)
 				c8->ip -= 2;
 			break;
 		case 0x15:
-			chip8.delay_timer = *vx;
+			chip8.dt = *vx;
 			break;
 		case 0x18:
-			chip8.sound_timer = *vx;
+			chip8.st = *vx;
 			break;
 		case 0x1e:
 			chip8.mp += *vx;
@@ -615,10 +587,10 @@ int main(int argc, char **argv)
 		if (c8->hlt)
 			break;
 		if ((now = SDL_GetTicks()) - last >= 15) {
-			if (c8->delay_timer > 0)
-				c8->delay_timer--;
-			if (c8->sound_timer > 0)
-				c8->sound_timer--;
+			if (c8->dt > 0)
+				c8->dt--;
+			if (c8->st > 0)
+				c8->st--;
 			last = now;
 		}
 
