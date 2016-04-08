@@ -564,9 +564,7 @@ static void chip8_decode(uint8_t *buf)
 	uint8_t op;
 
 	op = (buf[0] & 0xf0) >> 4;
-	if (op > 0xf) {
-		die("bad opcode: %d\n", op);
-	}
+
 	if (optables[op](buf)) {
 		pc_advance(1);
 	}
@@ -597,20 +595,10 @@ static void load_prog(const char *file)
 	}
 	fclose(fp);
 }
-static void wait_x(void)
-{
-	SDL_Event e;
-	while (1) {
-		if (SDL_WaitEvent(&e)) {
-			if (e.type == SDL_QUIT)
-				break;
-		}
-	}
-}
 int main(int argc, char **argv)
 {
 	int i;
-	uint32_t now, next;
+	uint32_t last, now;
 
 	assert(argc == 2);
 
@@ -620,20 +608,21 @@ int main(int argc, char **argv)
 
 	load_prog(argv[1]);
 
+	last = SDL_GetTicks();
 	while (1) {
 		chip8_video_key_process();
 		chip8_decode(&c8->mem[c8->ip]);
 		if (c8->hlt)
-			goto done;
-		SDL_Delay(15);
-		if (c8->delay_timer > 0)
-			c8->delay_timer--;
-		if (c8->sound_timer > 0)
-			c8->sound_timer--;
-	}
+			break;
+		if ((now = SDL_GetTicks()) - last >= 15) {
+			if (c8->delay_timer > 0)
+				c8->delay_timer--;
+			if (c8->sound_timer > 0)
+				c8->sound_timer--;
+			last = now;
+		}
 
-done:
-	wait_x();
+	}
 
 	chip8_close();
 
