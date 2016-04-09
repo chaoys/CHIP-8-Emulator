@@ -215,6 +215,9 @@ static void chip8_video_key_process(void)
 				case SDLK_f:
 					key = e.key.keysym.sym - SDLK_a + 10;
 					break;
+				case SDLK_ESCAPE:
+					chip8_close();
+					break;
 				default:
 					return;
 					break;
