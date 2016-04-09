@@ -384,9 +384,9 @@ static int op8(uint8_t *buf)
 			break;
 		case 5:
 			if (*vx < *vy) {
-				*vf = 0;
-			} else {
 				*vf = 1;
+			} else {
+				*vf = 0;
 			}
 			*vx -= *vy;
 			break;
@@ -396,9 +396,9 @@ static int op8(uint8_t *buf)
 			break;
 		case 7:
 			if (*vy < *vx) {
-				*vf = 0;
-			} else {
 				*vf = 1;
+			} else {
+				*vf = 0;
 			}
 			*vx = *vy - *vx;
 			break;
