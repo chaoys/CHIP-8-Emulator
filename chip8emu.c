@@ -71,11 +71,11 @@ static void chip8_dump(void)
 {
 	printf("CHIP8 State\n");
 	printf("IP 0x%x MP 0x%x SP 0x%x DT %d ST %d\n",
-		chip8.ip, chip8.mp, chip8.sp, chip8.dt, chip8.st);
+		c8->ip, c8->mp, c8->sp, c8->dt, c8->st);
 	printf("V0 %d V1 %d V2 %d V3 %d V4 %d V5 %d V6 %d V7 %d\n",
-		chip8.v[0], chip8.v[1], chip8.v[2], chip8.v[3], chip8.v[4], chip8.v[5], chip8.v[6], chip8.v[7]);
+		c8->v[0], c8->v[1], c8->v[2], c8->v[3], c8->v[4], c8->v[5], c8->v[6], c8->v[7]);
 	printf("V8 %d V9 %d VA %d VB %d VC %d VD %d VE %d VF %d \n",
-		chip8.v[8], chip8.v[9], chip8.v[0xa], chip8.v[0xb], chip8.v[0xc], chip8.v[0xd], chip8.v[0xe], chip8.v[0xf]);
+		c8->v[8], c8->v[9], c8->v[0xa], c8->v[0xb], c8->v[0xc], c8->v[0xd], c8->v[0xe], c8->v[0xf]);
 }
 static void chip8_init(void)
 {
@@ -103,7 +103,7 @@ static void chip8_init(void)
 	c8->ip = PROGRAM_MEM;
 	c8->mp = 0;
 	c8->sp = 0;
-	c8->stack = (uint16_t *)&chip8.mem[STACK_MEM];
+	c8->stack = (uint16_t *)&c8->mem[STACK_MEM];
 
 	memcpy(c8->mem, fonts, sizeof(fonts));
 }
@@ -251,7 +251,7 @@ static inline uint8_t reg2(uint8_t *buf)
 }
 static inline void pc_advance(int n)
 {
-	chip8.ip += 2 * n;
+	c8->ip += 2 * n;
 }
 static void clear_screen(void)
 {
@@ -259,15 +259,15 @@ static void clear_screen(void)
 }
 static void sub_call(uint16_t addr)
 {
-	chip8.stack[chip8.sp] = chip8.ip + 2;
-	chip8.sp += 2;
-	chip8.ip = addr;
+	c8->stack[c8->sp] = c8->ip + 2;
+	c8->sp += 2;
+	c8->ip = addr;
 }
 static void sub_return(void)
 {
-	chip8.sp -= 2;
-	assert(chip8.sp >= 0);
-	chip8.ip = chip8.stack[chip8.sp];
+	c8->sp -= 2;
+	assert(c8->sp >= 0);
+	c8->ip = c8->stack[c8->sp];
 }
 static uint8_t wait_input(void)
 {
@@ -295,7 +295,7 @@ static int op0(uint8_t *buf)
 			sub_return();
 			return 0;
 		} else if (p == OP_HLT) {
-			chip8.hlt = 1;
+			c8->hlt = 1;
 		}
 	} else {
 		die("op 0x0NNN not implemented\n");
@@ -305,7 +305,7 @@ static int op0(uint8_t *buf)
 
 static int op1(uint8_t *buf)
 {
-	chip8.ip = address(buf);
+	c8->ip = address(buf);
 	return 0;
 }
 
@@ -427,13 +427,13 @@ static int op9(uint8_t *buf)
 
 static int opa(uint8_t *buf)
 {
-	chip8.mp = address(buf);
+	c8->mp = address(buf);
 	return 1;
 }
 
 static int opb(uint8_t *buf)
 {
-	chip8.ip = c8->v[0] + address(buf);
+	c8->ip = c8->v[0] + address(buf);
 	return 0;
 }
 
@@ -458,12 +458,12 @@ static int ope(uint8_t *buf)
 	uint8_t key = c8->v[reg1(buf)];
 	switch (flag) {
 		case 0x9e:
-			if (chip8.key[key] != 0) {
+			if (c8->key[key] != 0) {
 				pc_advance(1);
 			}
 			break;
 		case 0xa1:
-			if (chip8.key[key] == 0) {
+			if (c8->key[key] == 0) {
 				pc_advance(1);
 			}
 			break;
@@ -480,7 +480,7 @@ static int opf(uint8_t *buf)
 	uint8_t flag = value8(buf);
 	switch (flag ) {
 		case 0x07:
-			*vx = chip8.dt;
+			*vx = c8->dt;
 			break;
 		case 0x0a:
 			*vx = wait_input();
@@ -489,27 +489,27 @@ static int opf(uint8_t *buf)
 				c8->ip -= 2;
 			break;
 		case 0x15:
-			chip8.dt = *vx;
+			c8->dt = *vx;
 			break;
 		case 0x18:
-			chip8.st = *vx;
+			c8->st = *vx;
 			break;
 		case 0x1e:
-			chip8.mp += *vx;
+			c8->mp += *vx;
 			break;
 		case 0x29:
-			chip8.mp = charat(*vx);
+			c8->mp = charat(*vx);
 			break;
 		case 0x33:
-			chip8.mem[chip8.mp] = (*vx) / 100;
-			chip8.mem[chip8.mp + 1] = ((*vx) % 100) / 10;
-			chip8.mem[chip8.mp + 2] = (*vx) % 10;
+			c8->mem[c8->mp] = (*vx) / 100;
+			c8->mem[c8->mp + 1] = ((*vx) % 100) / 10;
+			c8->mem[c8->mp + 2] = (*vx) % 10;
 			break;
 		case 0x55:
 			{
 				int i;
 				for (i = 0; i <= reg1(buf); i++) {
-					chip8.mem[chip8.mp + i] = c8->v[i];
+					c8->mem[c8->mp + i] = c8->v[i];
 				}
 			}
 			break;
@@ -517,7 +517,7 @@ static int opf(uint8_t *buf)
 			{
 				int i;
 				for (i = 0; i <= reg1(buf); i++) {
-					c8->v[i] = chip8.mem[chip8.mp + i];
+					c8->v[i] = c8->mem[c8->mp + i];
 				}
 			}
 			break;
@@ -555,7 +555,7 @@ static void load_prog(const char *file)
 
 	fp = fopen(file, "r");
 	assert(fp);
-	mem = &chip8.mem[PROGRAM_MEM];
+	mem = &c8->mem[PROGRAM_MEM];
 	while (!feof(fp)) {
 		rc = fread(mem, 1, 256, fp);
 		if (rc == 0) {
