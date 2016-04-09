@@ -12,7 +12,6 @@
 #define DISPLAY_MEM	0xf00
 #define STACK_MEM	0xea0
 #define PROGRAM_MEM	0x200
-#define OP_HLT		0xff
 #define SURFACE_WIDTH	640
 #define SURFACE_HEIGHT	320
 #define SCREEN_WIDTH	64
@@ -32,7 +31,6 @@ struct chip8_state {
 	uint16_t ip;
 	uint16_t mp;
 	int16_t sp;
-	uint16_t hlt;
 
 	uint8_t dt;
 	uint8_t st;
@@ -229,30 +227,19 @@ static void chip8_video_key_process(void)
 		}
 	}
 }
-static inline uint16_t address(uint8_t *buf)
+
+#define opC	((op>>12)&0x000f)
+#define opX	((op>>8)&0x000f)
+#define opY	((op>>4)&0x000f)
+#define opN	(op&0x000f)
+#define opNN	(op&0x00ff)
+#define opNNN	(op&0x0fff)
+
+static uint16_t rand16(void)
 {
-	return ((buf[0] & 0x0f) << 8) | (buf[1]);
+	return (uint16_t)(random() & 0xffff);
 }
-static inline uint8_t value4(uint8_t *buf)
-{
-	return (buf[1] & 0x0f);
-}
-static inline int8_t value8(uint8_t *buf)
-{
-	return (buf[1]);
-}
-static inline uint8_t reg1(uint8_t *buf)
-{
-	return (buf[0] & 0x0f);
-}
-static inline uint8_t reg2(uint8_t *buf)
-{
-	return ((buf[1] & 0xf0) >> 4);
-}
-static inline void pc_advance(int n)
-{
-	c8->ip += 2 * n;
-}
+
 static void clear_screen(void)
 {
 	chip8_video_clearscreen();
@@ -273,96 +260,81 @@ static uint8_t wait_input(void)
 {
 	return chip8_video_key_wait();
 }
-static uint16_t rand16(void)
+static int op0(uint16_t op)
 {
-	return (uint16_t)(random() & 0xffff);
-}
-static uint16_t charat(uint8_t c)
-{
-	assert(c >= 0 && c <= 0xf);
-	return (c * 5);
-}
-static int op0(uint8_t *buf)
-{
-	uint8_t p;
-
-	p = (buf[0] & 0x0f);
-	if (p == 0) {
-		p = (buf[1]);
-		if (p == 0xe0) {
+	switch (opNNN) {
+		case 0x0e0:
 			clear_screen();
-		} else if (p == 0xee) {
+			break;
+		case 0x0ee:
 			sub_return();
 			return 0;
-		} else if (p == OP_HLT) {
-			c8->hlt = 1;
-		}
-	} else {
-		die("op 0x0NNN not implemented\n");
-	}
+			break;
+		default:
+			die("bad op0: %04x\n", op);
+			break;
+	};
+
 	return 1;
 }
 
-static int op1(uint8_t *buf)
+static int op1(uint16_t op)
 {
-	c8->ip = address(buf);
+	c8->ip = opNNN;
 	return 0;
 }
 
-static int op2(uint8_t *buf)
+static int op2(uint16_t op)
 {
-	sub_call(address(buf));
+	sub_call(opNNN);
 	return 0;
 }
 
-static int op3(uint8_t *buf)
+static int op3(uint16_t op)
 {
-	if (c8->v[reg1(buf)] == value8(buf)) {
-		pc_advance(2);
-		return 0;
+	if (c8->v[opX] == opNN) {
+		return 2;
 	}
 	return 1;
 }
 
-static int op4(uint8_t *buf)
+static int op4(uint16_t op)
 {
-	if (c8->v[reg1(buf)] != value8(buf)) {
-		pc_advance(2);
-		return 0;
+	if (c8->v[opX] != opNN)
+		return 2;
+	return 1;
+}
+
+static int op5(uint16_t op)
+{
+	assert(opN == 0);
+	if (c8->v[opX] == c8->v[opY]) {
+		return 2;
 	}
 	return 1;
 }
 
-static int op5(uint8_t *buf)
+static int op6(uint16_t op)
 {
-	if (c8->v[reg1(buf)] == c8->v[reg2(buf)]) {
-		pc_advance(2);
-		return 0;
-	}
+	c8->v[opX] = opNN;
 	return 1;
 }
 
-static int op6(uint8_t *buf)
+static int op7(uint16_t op)
 {
-	c8->v[reg1(buf)] = value8(buf);
+	c8->v[opX] += opNN;
 	return 1;
 }
 
-static int op7(uint8_t *buf)
-{
-	c8->v[reg1(buf)] += value8(buf);
-	return 1;
-}
-
-static int op8(uint8_t *buf)
+static int op8(uint16_t op)
 {
 	uint8_t *vx, *vy, *vf;
-	int flag;
-	flag = value4(buf);
-	vx = &c8->v[reg1(buf)];
-	vy = &c8->v[reg2(buf)];
+
+	vx = &c8->v[opX];
+	vy = &c8->v[opY];
 	vf = &c8->v[0xf];
-	switch (flag) {
+
+	switch (opN) {
 		case 0:
 			*vx = *vy;
 			break;
@@ -386,6 +358,7 @@ static int op8(uint8_t *buf)
 			}
 			break;
 		case 5:
+			/* borrow ? */
 			if (*vx < *vy) {
 				*vf = 1;
 			} else {
@@ -398,6 +371,7 @@ static int op8(uint8_t *buf)
 			*vx = (*vx >> 1);
 			break;
 		case 7:
+			/* borrow ? */
 			if (*vy < *vx) {
 				*vf = 1;
 			} else {
@@ -410,75 +384,72 @@ static int op8(uint8_t *buf)
 			*vx = (*vx << 1);
 			break;
 		default:
-			die("bad op8: %d\n", flag);
+			die("bad op8: %04x\n", op);
 			break;
 	}
 	return 1;
 }
 
-static int op9(uint8_t *buf)
+static int op9(uint16_t op)
 {
-	if (c8->v[reg1(buf)] != c8->v[reg2(buf)]) {
-		pc_advance(2);
-		return 0;
-	}
+	assert(opN == 0);
+	if (c8->v[opX] != c8->v[opY])
+		return 2;
 	return 1;
 }
 
-static int opa(uint8_t *buf)
+static int opa(uint16_t op)
 {
-	c8->mp = address(buf);
+	c8->mp = opNNN;
 	return 1;
 }
 
-static int opb(uint8_t *buf)
+static int opb(uint16_t op)
 {
-	c8->ip = c8->v[0] + address(buf);
+	c8->ip = c8->v[0] + opNNN;
 	return 0;
 }
 
-static int opc(uint8_t *buf)
+static int opc(uint16_t op)
 {
-	c8->v[reg1(buf)] = value8(buf) & rand16();
+	c8->v[opX] = opNN & rand16();
 	return 1;
 }
 
-static int opd(uint8_t *buf)
+static int opd(uint16_t op)
 {
-	uint16_t op;
-
-	op = (buf[0] << 8) | buf[1];
-	c8->v[0xf] = chip8_video_draw(&c8->mem[c8->mp], c8->v[(op&0x0f00)>>8], c8->v[(op&0x00f0)>>4], (op&0x0f));
+	c8->v[0xf] = chip8_video_draw(&c8->mem[c8->mp], c8->v[opX], c8->v[opY], opN);
 	return 1;
 }
 
-static int ope(uint8_t *buf)
+static int ope(uint16_t op)
 {
-	uint8_t flag = value8(buf);
-	uint8_t key = c8->v[reg1(buf)];
-	switch (flag) {
+	uint8_t key = c8->v[opX];
+
+	switch (opNN) {
 		case 0x9e:
 			if (c8->key[key] != 0) {
-				pc_advance(1);
+				return 2;
 			}
 			break;
 		case 0xa1:
 			if (c8->key[key] == 0) {
-				pc_advance(1);
+				return 2;
 			}
 			break;
 		default:
-			die("bad ope: 0x%02x\n", flag);
+			die("bad ope: %04x\n", op);
 			break;
 	}
+	
 	return 1;
 }
 
-static int opf(uint8_t *buf)
+static int opf(uint16_t op)
 {
-	uint8_t *vx = &c8->v[reg1(buf)];
-	uint8_t flag = value8(buf);
-	switch (flag ) {
+	uint8_t *vx = &c8->v[opX];
+
+	switch (opNN) {
 		case 0x07:
 			*vx = c8->dt;
 			break;
@@ -498,7 +469,7 @@ static int opf(uint8_t *buf)
 			c8->mp += *vx;
 			break;
 		case 0x29:
-			c8->mp = charat(*vx);
+			c8->mp = (*vx) * 5;
 			break;
 		case 0x33:
 			c8->mem[c8->mp] = (*vx) / 100;
@@ -508,7 +479,7 @@ static int opf(uint8_t *buf)
 		case 0x55:
 			{
 				int i;
-				for (i = 0; i <= reg1(buf); i++) {
+				for (i = 0; i <= opX; i++) {
 					c8->mem[c8->mp + i] = c8->v[i];
 				}
 			}
@@ -516,33 +487,34 @@ static int opf(uint8_t *buf)
 		case 0x65:
 			{
 				int i;
-				for (i = 0; i <= reg1(buf); i++) {
+				for (i = 0; i <= opX; i++) {
 					c8->v[i] = c8->mem[c8->mp + i];
 				}
 			}
 			break;
 		default:
-			die("bad opf: 0x%02x\n", flag);
+			die("bad opf: %04x\n", op);
 			break;
 	}
 	return 1;
 }
 
-typedef int (*op_fun_t) (uint8_t *);
+typedef int (*op_fun_t) (uint16_t);
 static op_fun_t optables[] = {
 	op0, op1, op2, op3, op4, op5, op6, op7,
 	op8, op9, opa, opb, opc, opd, ope, opf,
 };
 
-static void chip8_decode(uint8_t *buf)
+static void chip8_decode(uint16_t op)
 {
-	uint8_t op;
-
-	op = (buf[0] & 0xf0) >> 4;
-
-	if (optables[op](buf)) {
-		pc_advance(1);
-	}
+	uint16_t n;
+       
+	/*
+	 * c8->ip += 2 * optables[opC](op);
+	 * This is wrong because op_fun may modify c8->ip !
+	 */
+	n = optables[opC](op);
+	c8->ip += 2 * n;
 }
 
 static void load_prog(const char *file)
@@ -586,9 +558,7 @@ int main(int argc, char **argv)
 	last = SDL_GetTicks();
 	while (1) {
 		chip8_video_key_process();
-		chip8_decode(&c8->mem[c8->ip]);
-		if (c8->hlt)
-			break;
+		chip8_decode(ntohs(*(uint16_t*)&c8->mem[c8->ip]));
 		if ((now = SDL_GetTicks()) - last >= 15) {
 			if (c8->dt > 0)
 				c8->dt--;
